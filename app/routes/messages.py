@@ -1,7 +1,56 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, request
+from ..models.message import Message
+from .. import db
+from ..schemas.message_schema import MessageSchema
 
 messages_bp = Blueprint('messages', __name__)
+message_schema = MessageSchema()
+messages_schema = MessageSchema(many=True)
 
-@messages_bp.route("/", methods=["GET"])
+@messages_bp.route('/', methods=['GET'])
 def get_messages():
-    return jsonify({"messages": ["Olá, mundo!", "Essa é a segunda mensagem."]})
+    messages = Message.query.all()
+    return messages_schema.jsonify(messages), 200
+
+@messages_bp.route('/<int:message_id>', methods=['GET'])
+def get_message(message_id):
+    message = Message.query.get_or_404(message_id)
+    return message_schema.jsonify(message), 200
+
+@messages_bp.route('/', methods=['POST'])
+def create_message():
+    data = message_schema.load(request.get_json())
+    message = Message(**data)
+    db.session.add(message)
+    db.session.commit()
+    return message_schema.jsonify(message), 201
+
+@messages_bp.route('/<int:message_id>', methods=['PUT'])
+def update_message(message_id):
+    message = Message.query.get_or_404(message_id)
+    data = message_schema.load(request.get_json())
+
+    for key, value in data.items():
+        setattr(message, key, value)
+
+    db.session.commit()
+    return message_schema.jsonify(message), 200
+    
+@messages_bp.route('/<int:message_id>', methods=['PATCH'])
+def partial_update_message(message_id):
+    message = Message.query.get_or_404(message_id)
+    data = message_schema.load(request.get_json(), partial=True)
+
+    for key, value in data.items():
+        setattr(message, key, value)
+
+    db.session.commit()
+    return message_schema.jsonify(message), 200
+
+@messages_bp.route('/<int:message_id>', methods=['DELETE'])
+def delete_message(message_id):
+    message = Message.query.get_or_404(message_id)
+    db.session.delete(message)
+    db.session.commit()
+    return '', 204
+

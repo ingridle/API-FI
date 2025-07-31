@@ -1,22 +1,49 @@
-from flask import Flask
+from flask import Flask,jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_marshmallow import Marshmallow
+from marshmallow import ValidationError
+from werkzeug.exceptions import HTTPException
 from .config import Config
 
+db = SQLAlchemy()
+ma = Marshmallow()
+migrate = Migrate()
 
-db = SQLAlchemy()            # ORM para manipular o banco de dados
-migrate = Migrate()          # Gerenciador de migrações (controle de versão do banco)
+def register_error_handlers(app):
+
+    @app.errorhandler(ValidationError)
+    def handle_validation_error(error):
+        return jsonify({
+            "error": "Validation Error",
+            "messages": error.messages
+        }), 400
+
+    @app.errorhandler(HTTPException)
+    def handle_http_exception(error):
+        return jsonify({
+            "error": error.name,
+            "message": error.description
+        }), error.code
+
+    @app.errorhandler(Exception)
+    def handle_generic_exception(error):
+        return jsonify({
+            "error": "Internal Server Error",
+            "message": str(error)
+        }), 500
 
 def create_app():
-    app = Flask(__name__)            # Criação da instância principal da aplicação
-    app.config.from_object(Config)   # Carrega as configurações definidas em config.py
+    app = Flask(__name__)
+    app.config.from_object(Config)
+    app.json.sort_keys = False
 
-    app.json.sort_keys = False       # Evita a ordenação automática de chaves nos JSONs
-
-    db.init_app(app)                 # Inicializa o SQLAlchemy com a aplicação Flask
-    migrate.init_app(app, db)       # Associa o Flask-Migrate à aplicação e ao banco
+    db.init_app(app)
+    ma.init_app(app)
+    migrate.init_app(app, db)
 
     from .routes.messages import messages_bp
     app.register_blueprint(messages_bp, url_prefix="/messages")
+    register_error_handlers(app)
 
     return app
