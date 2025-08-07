@@ -3,6 +3,8 @@ from ..schemas.comment_schema import CommentSchema
 from ..controllers import comment_controller
 from ..middlewares.message_required import mensagem_existe
 from ..middlewares.comment_required import comentario_existe
+from flask_jwt_extended import jwt_required, get_jwt_identity
+
 
 comments_bp = Blueprint('comments', __name__)
 comment_schema = CommentSchema()
@@ -21,12 +23,14 @@ def get_comment(message_id, comment_id):
     return comment_schema.jsonify(request.comentario), 200
 
 @comments_bp.route('/messages/<int:message_id>/comments', methods=['POST'])
+@jwt_required()
 @mensagem_existe
 def create_comment(message_id):
+    user_id = get_jwt_identity()
     data = request.get_json()
     data['message_id'] = message_id
+    data['user_id'] = user_id
     validated_data = comment_schema.load(data)
-    validated_data["user_id"] = 1  # usuário fixo
     comment = comment_controller.criar_comentario(validated_data)
     return comment_schema.jsonify(comment), 201
 
