@@ -29,8 +29,8 @@ def create_comment(message_id):
     user_id = get_jwt_identity()
     data = request.get_json()
     data['message_id'] = message_id
-    data['user_id'] = user_id
     validated_data = comment_schema.load(data)
+    validated_data['user_id'] = user_id
     comment = comment_controller.criar_comentario(validated_data)
     return comment_schema.jsonify(comment), 201
 
